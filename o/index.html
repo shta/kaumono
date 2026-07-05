@@ -70,10 +70,11 @@
 
   <script>
     const params = new URLSearchParams(location.hash.slice(1));
+    const presetPayload = params.get("p1") || "";
     const compressedPayload = params.get("z") || "";
     const legacyPayload = params.get("t") || "";
-    const payloadName = compressedPayload ? "z" : "t";
-    const payload = compressedPayload || legacyPayload;
+    const payloadName = presetPayload ? "p1" : (compressedPayload ? "z" : "t");
+    const payload = presetPayload || compressedPayload || legacyPayload;
 
     const openButton = document.getElementById("open-app");
     const copyButton = document.getElementById("copy-text");
@@ -108,7 +109,9 @@
       openButton.disabled = true;
       message.textContent = "メッセージ全体をコピーして、アプリ内の取り込み画面から貼り付けてください。";
     } else {
-      message.textContent = "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
+      message.textContent = presetPayload
+        ? "アプリが開かない場合は、買うものメモを最新版に更新してください。"
+        : "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
     }
 
     openButton.addEventListener("click", () => {
@@ -117,7 +120,9 @@
       setTimeout(() => {
         message.textContent = legacyPayload
           ? "アプリが開かない場合は、下の「共有テキストをコピー」を使ってください。"
-          : "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
+          : (presetPayload
+              ? "アプリが開かない場合は、買うものメモを最新版に更新してください。"
+              : "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。");
       }, 1200);
     });
 
