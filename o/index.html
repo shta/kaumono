@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>買うものメモで開く</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      margin: 0;
+      background: #f6f7f9;
+      color: #1d1d1f;
+    }
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.08);
+    }
+    button {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 0;
+      border-radius: 12px;
+      background: #0a84ff;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      text-align: center;
+    }
+    button:disabled {
+      opacity: .45;
+    }
+    button.secondary {
+      background: #eef2f7;
+      color: #0a84ff;
+    }
+    .note {
+      margin-top: 18px;
+      color: #666;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>買うものメモで開く</h1>
+      <p id="description">共有された買い物リストをアプリで開けます。</p>
+
+      <button id="open-app">買うものメモで開く</button>
+      <button id="copy-text" class="secondary" hidden>共有テキストをコピー</button>
+
+      <p class="note">
+        アプリが開かない場合は、このリンクではなく共有メッセージ本文全体をコピーして、
+        アプリ内の「＋」→「共有テキストから取り込む」から貼り付けてください。
+      </p>
+
+      <p id="message" class="note"></p>
+    </div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.hash.slice(1));
+    const compressedPayload = params.get("z") || "";
+    const legacyPayload = params.get("t") || "";
+    const payloadName = compressedPayload ? "z" : "t";
+    const payload = compressedPayload || legacyPayload;
+
+    const openButton = document.getElementById("open-app");
+    const copyButton = document.getElementById("copy-text");
+    const message = document.getElementById("message");
+    const description = document.getElementById("description");
+
+    function base64UrlDecodeToText(value) {
+      try {
+        const base64 = value
+          .replace(/-/g, "+")
+          .replace(/_/g, "/")
+          .padEnd(Math.ceil(value.length / 4) * 4, "=");
+
+        const binary = atob(base64);
+        const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+      } catch {
+        return null;
+      }
+    }
+
+    const decodedText = legacyPayload ? base64UrlDecodeToText(legacyPayload) : null;
+
+    if (!payload) {
+      description.textContent = "共有データを読み取れませんでした。";
+      openButton.disabled = true;
+      message.textContent = "メッセージ全体をコピーして、アプリ内の取り込み画面から貼り付けてください。";
+    } else if (legacyPayload && decodedText) {
+      copyButton.hidden = false;
+    } else if (legacyPayload && !decodedText) {
+      description.textContent = "共有データを読み取れませんでした。";
+      openButton.disabled = true;
+      message.textContent = "メッセージ全体をコピーして、アプリ内の取り込み画面から貼り付けてください。";
+    } else {
+      message.textContent = "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
+    }
+
+    openButton.addEventListener("click", () => {
+      if (!payload) return;
+      location.href = "kaumonomemo://import?" + payloadName + "=" + encodeURIComponent(payload);
+      setTimeout(() => {
+        message.textContent = legacyPayload
+          ? "アプリが開かない場合は、下の「共有テキストをコピー」を使ってください。"
+          : "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
+      }, 1200);
+    });
+
+    copyButton.addEventListener("click", async () => {
+      if (!decodedText) return;
+      try {
+        await navigator.clipboard.writeText(decodedText);
+        message.textContent = "共有テキストをコピーしました。アプリ内の取り込み画面に貼り付けてください。";
+      } catch {
+        message.textContent = "コピーできませんでした。共有メッセージ全体を手動でコピーしてください。";
+      }
+    });
+  </script>
+</body>
+</html>
