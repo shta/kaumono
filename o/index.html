@@ -47,10 +47,6 @@
     button:disabled {
       opacity: .45;
     }
-    button.secondary {
-      background: #eef2f7;
-      color: #0a84ff;
-    }
     .note {
       margin-top: 18px;
       color: #666;
@@ -65,7 +61,6 @@
       <p id="description">共有された買い物リストをアプリで開けます。</p>
 
       <button id="open-app">買うものメモで開く</button>
-      <button id="copy-text" class="secondary" hidden>共有テキストをコピー</button>
 
       <p class="note">
         アプリが開かない場合は、このリンクではなく共有メッセージ本文全体をコピーして、
@@ -77,79 +72,34 @@
   </main>
 
   <script>
-    // フラグメントのpayload名は明示的に列挙する。アプリ側に形式を増やしたら
-    // ここへも追加する（追加しないと新形式のリンクがアプリへ渡らない）。
-    // 短い順に p2 -> p1 -> z -> t を優先する。共有内容はフラグメントのまま扱い、
-    // サーバーへは送らない。
+    // 受け付けるフラグメントのpayload名は "p2"（固定辞書v2つき圧縮）だけ。
+    // アプリ側で形式を増やしたら（例: p3）ここへも追加する。
+    // 追加しないと新形式のリンクがアプリへ渡らないので、**アプリのリリースより先に**
+    // このページを配置すること。
+    // p2はこのページでは復号しない（辞書を持たないし、その必要も無い）。
+    // 共有内容はフラグメントのまま扱い、サーバーへは送らない。
     const params = new URLSearchParams(location.hash.slice(1));
-    const presetV2Payload = params.get("p2") || "";
-    const presetPayload = params.get("p1") || "";
-    const compressedPayload = params.get("z") || "";
-    const legacyPayload = params.get("t") || "";
-    const payloadName = presetV2Payload
-      ? "p2"
-      : (presetPayload ? "p1" : (compressedPayload ? "z" : "t"));
-    const payload = presetV2Payload || presetPayload || compressedPayload || legacyPayload;
-    const needsLatestApp = Boolean(presetV2Payload || presetPayload);
+    const payload = params.get("p2") || "";
 
     const openButton = document.getElementById("open-app");
-    const copyButton = document.getElementById("copy-text");
     const message = document.getElementById("message");
     const description = document.getElementById("description");
-
-    function base64UrlDecodeToText(value) {
-      try {
-        const base64 = value
-          .replace(/-/g, "+")
-          .replace(/_/g, "/")
-          .padEnd(Math.ceil(value.length / 4) * 4, "=");
-
-        const binary = atob(base64);
-        const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-        return new TextDecoder().decode(bytes);
-      } catch {
-        return null;
-      }
-    }
-
-    const decodedText = legacyPayload ? base64UrlDecodeToText(legacyPayload) : null;
 
     if (!payload) {
       description.textContent = "共有データを読み取れませんでした。";
       openButton.disabled = true;
       message.textContent = "メッセージ全体をコピーして、アプリ内の取り込み画面から貼り付けてください。";
-    } else if (legacyPayload && decodedText) {
-      copyButton.hidden = false;
-    } else if (legacyPayload && !decodedText) {
-      description.textContent = "共有データを読み取れませんでした。";
-      openButton.disabled = true;
-      message.textContent = "メッセージ全体をコピーして、アプリ内の取り込み画面から貼り付けてください。";
     } else {
-      message.textContent = needsLatestApp
-        ? "アプリが開かない場合は、買うものメモを最新版に更新してください。"
-        : "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
+      message.textContent = "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。";
     }
 
     openButton.addEventListener("click", () => {
       if (!payload) return;
-      location.href = "kaumonomemo://import?" + payloadName + "=" + encodeURIComponent(payload);
+      location.href = "kaumonomemo://import?p2=" + encodeURIComponent(payload);
       setTimeout(() => {
-        message.textContent = legacyPayload
-          ? "アプリが開かない場合は、下の「共有テキストをコピー」を使ってください。"
-          : (needsLatestApp
-              ? "アプリが開かない場合は、買うものメモを最新版に更新してください。"
-              : "アプリが開かない場合は、共有メッセージ本文全体をコピーして取り込んでください。");
+        message.textContent = "アプリが開かない場合は、買うものメモを最新版に更新するか、"
+          + "共有メッセージ本文全体をコピーして取り込んでください。";
       }, 1200);
-    });
-
-    copyButton.addEventListener("click", async () => {
-      if (!decodedText) return;
-      try {
-        await navigator.clipboard.writeText(decodedText);
-        message.textContent = "共有テキストをコピーしました。アプリ内の取り込み画面に貼り付けてください。";
-      } catch {
-        message.textContent = "コピーできませんでした。共有メッセージ全体を手動でコピーしてください。";
-      }
     });
   </script>
 </body>
